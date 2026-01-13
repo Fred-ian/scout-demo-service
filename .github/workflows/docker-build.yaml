@@ -8,7 +8,7 @@ on:
     branches: ["main"]
 
 env:
-  IMAGE_NAME: ""
+  IMAGE_NAME: "fredian0525/scout-demo-service"
   SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
   DOCKERFILE_PATH: Dockerfile
 
@@ -28,7 +28,7 @@ jobs:
       - name: Log into registry
         uses: docker/login-action@v2
         with:
-          username: ""
+          username: "fredian0525"
           password: ${{ secrets.DOCKER_PAT }}
 
       - name: Extract Docker metadata

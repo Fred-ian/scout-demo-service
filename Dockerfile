@@ -1,23 +1,36 @@
-FROM alpine:3.14@sha256:eb3e4e175ba6d212ba1d6e04fc0782916c08e1c9d7b45892e9796141b1d379ae
+# Stage 1: Builder
+FROM alpine:latest AS builder
 
-ENV BLUEBIRD_WARNINGS=0 \
-  NODE_ENV=production \
-  NODE_NO_WARNINGS=1 \
-  NPM_CONFIG_LOGLEVEL=warn \
-  SUPPRESS_NO_CONFIG_WARNING=true
+WORKDIR /app
+COPY package.json package-lock.json ./
 
-RUN apk add --no-cache \
-  nodejs
+# Install npm and build dependencies (if any)
+RUN apk add --no-cache nodejs npm \
+    && npm ci --only=production
 
-COPY package.json ./
+# Stage 2: Runtime
+FROM alpine:latest
 
-RUN  apk add --no-cache npm \
- && npm i --no-optional \
- && npm cache clean --force \
- && apk del npm
- 
-COPY . /app
+ENV NODE_ENV=production \
+    NODE_NO_WARNINGS=1
 
-CMD ["node","/app/app.js"]
+WORKDIR /app
+
+# Install only runtime dependencies (nodejs)
+RUN apk add --no-cache nodejs
+
+# Copy dependencies and app source from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY . .
+
+# Run as non-root user for security (optional but recommended)
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+# Healthcheck to monitor container status
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["node", "app.js"]
 
 EXPOSE 3000
